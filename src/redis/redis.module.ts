@@ -23,7 +23,11 @@ export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
           lazyConnect: true,
         });
         redis.on('error', (err) => logger.error(err.message));
-        redis.on('ready', () => logger.log(`Connected to ${config.redisUrl}`));
+        redis.on('ready', () =>
+          logger.log(
+            `Connected to ${config.redisUrl.includes('local') ? 'local-redis' : 'Upstash Redis'}`,
+          ),
+        );
         redis.connect().catch(() => {
           // Reconnection is handled by ioredis; errors are logged above.
         });

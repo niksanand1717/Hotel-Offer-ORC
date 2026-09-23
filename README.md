@@ -135,6 +135,25 @@ For a managed Redis, set `REDIS_URL`. Use `rediss://user:pass@host:port` for a T
 
 ### Deploying to Google Cloud Run
 
+#### Option A: one service (simplest)
+
+With `RUN_WORKER=true`, the API process also runs the Temporal worker, so a single Cloud Run service does everything. You can create it in the Cloud Run console with **Continuously deploy from a repository**, choosing the **Dockerfile** build type. Use these settings:
+
+- **Container:** port `8080`. Leave the command and arguments empty.
+- **Memory and CPU:** 1 GiB memory, 1 CPU.
+- **Billing:** **Instance-based**, so the CPU stays allocated. This is required: with request-based billing, a worker on an idle instance can't pick up workflow tasks, and requests time out.
+- **Instances:** minimum 0, maximum 3.
+- **Authentication:** allow public access.
+- **Variables:**
+  - `RUN_WORKER=true`
+  - `TEMPORAL_ADDRESS`
+  - `TEMPORAL_NAMESPACE`
+  - `TEMPORAL_TASK_QUEUE=hotel-offers`
+- **Secrets** (preferably referenced from Secret Manager): `TEMPORAL_API_KEY` and `REDIS_URL`.
+
+#### Option B: separate API and worker services (script)
+
+
 `scripts/deploy-cloud-run.sh` builds the image with Cloud Build and deploys two Cloud Run services from it:
 
 | Service              | Command               | Settings                                                                  |
@@ -215,6 +234,7 @@ If something is already using port 6379 on your machine, publish the Compose Red
 | `SUPPLIER_BASE_URL`        | `http://localhost:$PORT`  | Where the worker and `/health` reach the mock suppliers |
 | `SUPPLIER_TIMEOUT_MS`      | `3000`                    | HTTP timeout for each supplier call                   |
 | `SUPPLIERS_DOWN`           | _(empty)_                 | Suppliers that start in the down state, e.g. `A` or `A,B` |
+| `RUN_WORKER`               | `false`                   | `true` = the API process also runs the Temporal worker (single-container deploys) |
 | `WORKER_HEALTH_PORT`       | _(off; `$PORT` on Cloud Run)_ | Port for the worker's health endpoint                 |
 
 ---

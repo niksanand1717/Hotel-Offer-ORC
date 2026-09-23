@@ -24,6 +24,8 @@ export const config = {
     tlsCertPath: process.env.TEMPORAL_TLS_CERT_PATH || undefined,
     tlsKeyPath: process.env.TEMPORAL_TLS_KEY_PATH || undefined,
   },
+  /** Also run the Temporal worker inside the API process (single-container deploys). */
+  runWorker: process.env.RUN_WORKER === 'true',
   /** Base URL the worker/health check use to reach the mock supplier endpoints. */
   supplierBaseUrl: process.env.SUPPLIER_BASE_URL ?? `http://localhost:${port}`,
   supplierTimeoutMs: int('SUPPLIER_TIMEOUT_MS', 3000),
