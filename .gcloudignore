@@ -1,0 +1,12 @@
+# Files excluded from `gcloud builds submit` uploads
+.git
+.gitignore
+node_modules
+dist
+coverage
+postman
+test
+*.log
+# Never upload secrets
+.env
+.env.*

@@ -1,0 +1,21 @@
+# Runs the API and worker against Temporal Cloud instead of the local server.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.cloud.yml \
+#     --env-file .env.cloud up -d --build api worker redis
+services:
+  api:
+    environment: &temporal-cloud
+      TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:?set TEMPORAL_ADDRESS in .env.cloud}
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:?set TEMPORAL_NAMESPACE in .env.cloud}
+      TEMPORAL_API_KEY: ${TEMPORAL_API_KEY:?set TEMPORAL_API_KEY in .env.cloud}
+    depends_on: !override
+      redis:
+        condition: service_healthy
+
+  worker:
+    environment: *temporal-cloud
+    depends_on: !override
+      api:
+        condition: service_started
+      redis:
+        condition: service_healthy

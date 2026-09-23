@@ -1,0 +1,87 @@
+services:
+  api:
+    build: .
+    image: hotel-offer-orchestrator:latest
+    ports:
+      - "${API_PORT:-3000}:3000"
+    environment: &app-env
+      PORT: 3000
+      REDIS_URL: redis://redis:6379
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      TEMPORAL_TASK_QUEUE: hotel-offers
+      SUPPLIER_BASE_URL: http://api:3000
+      HOTEL_CACHE_TTL_SECONDS: 300
+    depends_on:
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    image: hotel-offer-orchestrator:latest
+    command: ["node", "dist/worker.js"]
+    environment: *app-env
+    depends_on:
+      api:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgresql:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal
+    volumes:
+      - temporal-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  temporal:
+    image: temporalio/auto-setup:1.27.2
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal
+      POSTGRES_SEEDS: postgresql
+    ports:
+      - "${TEMPORAL_PORT:-7233}:7233"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      # Healthy once the "default" namespace (created by auto-setup) is served.
+      test: ["CMD-SHELL", "temporal operator namespace describe -n default --address $$(hostname -i):7233"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  temporal-ui:
+    image: temporalio/ui:2.34.0
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports:
+      - "${TEMPORAL_UI_PORT:-8080}:8080"
+    depends_on:
+      - temporal
+
+volumes:
+  temporal-db:
